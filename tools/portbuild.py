@@ -8,7 +8,9 @@
     portbuild.py package NAME...   dist/NAME-VERSION-x86_64.tar (ustar)
     portbuild.py test    NAME...   boot STELA in QEMU with the package on a
                                    test Data volume and run ports/NAME/test.sh
-    portbuild.py index             dist/index.json (every package in dist/)
+    portbuild.py index             dist/index.json (every package in dist/),
+                                   signed (index.json.sig) with
+                                   PKG_SIGNING_KEY when it is set
     portbuild.py all     NAME...   fetch, build, package, test
     portbuild.py list              the ports and their versions
 
@@ -364,6 +366,13 @@ def index():
         json.dump({"format": 1, "packages": entries}, f, indent=1, sort_keys=True)
         f.write("\n")
     print(f"index: {len(entries)} packages in {os.path.relpath(dest, HERE)}")
+    # Signed with ed25519 (STELA's tools/pkgsign.py) when PKG_SIGNING_KEY
+    # names the key file: dist/index.json.sig, what `pkg update` checks.
+    key = os.environ.get("PKG_SIGNING_KEY")
+    if key:
+        subprocess.run([sys.executable, os.path.join(STELA_ROOT, "tools", "pkgsign.py"),
+                        "sign", key, dest], check=True)
+        print(f"index: signed with {key}")
 
 
 def main():
