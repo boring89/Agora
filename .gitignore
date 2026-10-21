@@ -1,0 +1,5 @@
+# Downloaded or copied sources, build trees and packages are not kept.
+/sources/
+/work/
+/dist/
+__pycache__/

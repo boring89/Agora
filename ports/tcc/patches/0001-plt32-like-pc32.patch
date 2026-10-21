@@ -1,0 +1,21 @@
+--- a/x86_64-link.c
++++ b/x86_64-link.c
+@@ -76,6 +76,10 @@
+         case R_X86_64_64:
+         case R_X86_64_PC32:
+         case R_X86_64_PC64:
++        /* Calls get PLT32 relocations from current assemblers even in
++           static code: like PC32, a slot only when the symbol is not
++           defined here (STELA port). */
++        case R_X86_64_PLT32:
+             return AUTO_GOTPLT_ENTRY;
+ 
+         case R_X86_64_GOTTPOFF:
+@@ -89,7 +93,6 @@
+         case R_X86_64_GOTPCREL:
+         case R_X86_64_GOTPCRELX:
+         case R_X86_64_REX_GOTPCRELX:
+-        case R_X86_64_PLT32:
+         case R_X86_64_PLTOFF64:
+             return ALWAYS_GOTPLT_ENTRY;
+     }

@@ -1,0 +1,10 @@
+name = "rust-hello"
+version = "0.1.0"
+description = "An example of a Rust program with std, built for x86_64-unknown-linux-musl"
+license = "0BSD"
+homepage = "https://github.com/boring89/STELA"
+local = "crate"
+install = "bin"
+stela = "0.1.0"
+toolchain = "rust"
+depends = []

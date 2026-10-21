@@ -1,0 +1,13 @@
+[package]
+name = "rust-hello"
+version = "0.1.0"
+edition = "2021"
+license = "0BSD"
+publish = false
+
+[workspace]
+
+[profile.release]
+opt-level = "s"
+panic = "abort"
+strip = true
