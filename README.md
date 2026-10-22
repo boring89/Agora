@@ -70,3 +70,15 @@ In STELA, `make test-ports` runs all of it (local only, not in CI).
 | ripgrep | 15.2.0 | MIT OR Unlicense | Rust, from crates.io (P14) |
 | fd | 10.5.0 | MIT OR Apache-2.0 | Rust, from crates.io (P14) |
 | wpa_supplicant | 2.11 | BSD-3-Clause | compile-only: no Wi-Fi driver interface on STELA yet; wpa_passphrase works (P14) |
+
+## CI (written, never run yet)
+
+`.github/workflows/build.yml` (STELA P14 K18) builds every port against a
+STELA tag, tests each in QEMU, signs `dist/index.json` with the package key
+from the secret `PKG_SIGNING_KEY` and uploads the packages as a **draft**
+release of this repository. It runs only by hand (`workflow_dispatch`,
+inputs: the STELA tag and this repository's release tag, by default the
+same). Before the first run, the six `copy-from` ports need official URLs
+and the secret must hold the real package key (never the System key: STELA
+signs its System images on the releaser's own machine; STELA's
+`docs/release.md`).
