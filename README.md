@@ -67,3 +67,6 @@ In STELA, `make test-ports` runs all of it (local only, not in CI).
 | curl | 8.10.1 | curl | Mbed TLS |
 | file | 5.45 | BSD-2-Clause | with its magic database |
 | less | 668 | GPL-3.0-or-later | |
+| ripgrep | 15.2.0 | MIT OR Unlicense | Rust, from crates.io (P14) |
+| fd | 10.5.0 | MIT OR Apache-2.0 | Rust, from crates.io (P14) |
+| wpa_supplicant | 2.11 | BSD-3-Clause | compile-only: no Wi-Fi driver interface on STELA yet; wpa_passphrase works (P14) |
