@@ -20,13 +20,17 @@ $STELA_ROOT/build/musl/install/bin/musl-gcc, made by `make musl` there).
 
 port.toml (TOML subset: key = "string" | number | [list of strings]):
     name, version, description, license, homepage, stela (lowest STELA
-    version), install ("bin" or "app"), depends (list), and
+    version), install ("bin" or "app"), depends (list: packages it needs
+    installed), build-depends (list: ports whose headers and libraries it
+    builds against; P13), and
     source = URL, or copy-from = a path (~ allowed); sha256; file (the
     name to store it as, default the URL's last part).
 
 build.sh runs with SRC (the unpacked source; for a single-file source
 the folder holding it), OUT (what the package holds: bin/, lib/, share/
-or Name.app/), MUSL_GCC, STELA_ROOT, JOBS, PORT (ports/NAME).
+or Name.app/), MUSL_GCC, STELA_ROOT, JOBS, PORT (ports/NAME) and DEPS (P13:
+the include/ and lib/ of every build-depends and depends port merged,
+built first if they are not).
 
 test.sh is not a shell script but what to do in STELA's shell:
     $ COMMAND      typed at the prompt (after the previous command ended)
@@ -105,6 +109,7 @@ def port(name):
     elif ("source" in meta) == ("copy-from" in meta):
         fail(f"{name}: give exactly one of source, copy-from and local")
     meta.setdefault("depends", [])
+    meta.setdefault("build-depends", [])
     return meta
 
 
@@ -175,11 +180,47 @@ def unpack(src, into):
     return into
 
 
+def built(name):
+    out = os.path.join(WORK, name, "out")
+    return os.path.isdir(out) and bool(os.listdir(out))
+
+
+def deps_root(name, meta, seen=None):
+    """work/NAME/deps: the include/ and lib/ of the ports NAME builds
+    against (and theirs), each built first if it is not."""
+    seen = set() if seen is None else seen
+    root = os.path.join(WORK, name, "deps")
+    shutil.rmtree(root, ignore_errors=True)
+    os.makedirs(os.path.join(root, "include"))
+    os.makedirs(os.path.join(root, "lib"))
+
+    def add(dep):
+        if dep in seen:
+            return
+        seen.add(dep)
+        dmeta = port(dep)
+        for sub in dmeta["build-depends"] + dmeta["depends"]:
+            add(sub)
+        if not built(dep):
+            build(dep)
+        out = os.path.join(WORK, dep, "out")
+        for part in ("include", "lib"):
+            src = os.path.join(out, part)
+            if os.path.isdir(src):
+                shutil.copytree(src, os.path.join(root, part), dirs_exist_ok=True)
+
+    for dep in meta["build-depends"] + meta["depends"]:
+        add(dep)
+    return root
+
+
 def build(name):
     meta = port(name)
+    deps = deps_root(name, meta) if meta["build-depends"] or meta["depends"] else ""
     src = fetch(name)
     work = os.path.join(WORK, name)
-    shutil.rmtree(work, ignore_errors=True)
+    for sub in ("src", "out", "test"):
+        shutil.rmtree(os.path.join(work, sub), ignore_errors=True)
     srcdir = unpack(src, os.path.join(work, "src"))
     out = os.path.join(work, "out")
     os.makedirs(out)
@@ -191,7 +232,7 @@ def build(name):
                                cwd=srcdir, check=True)
     if not os.path.exists(MUSL_GCC) and meta.get("toolchain", "musl") == "musl":
         fail(f"no {MUSL_GCC} (run `make musl` in STELA)")
-    env = dict(os.environ, SRC=srcdir, OUT=out, MUSL_GCC=MUSL_GCC, STELA_ROOT=STELA_ROOT,
+    env = dict(os.environ, SRC=srcdir, OUT=out, MUSL_GCC=MUSL_GCC, STELA_ROOT=STELA_ROOT, DEPS=deps,
                JOBS=os.environ.get("JOBS") or str(os.cpu_count() or 2), PORT=os.path.join(PORTS, name))
     log = os.path.join(work, "build.log")
     with open(log, "w") as f:
