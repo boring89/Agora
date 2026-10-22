@@ -1,0 +1,11 @@
+name = "nano"
+version = "8.2"
+description = "GNU nano: a small text editor"
+license = "GPL-3.0-or-later"
+homepage = "https://www.nano-editor.org/"
+source = "https://www.nano-editor.org/dist/v8/nano-8.2.tar.xz"
+sha256 = "d5ad07dd862facae03051c54c6535e54c7ed7407318783fcad1ad2d7076fffeb"
+install = "bin"
+stela = "0.1.0"
+depends = []
+build-depends = ["ncurses"]

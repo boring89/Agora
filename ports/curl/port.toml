@@ -1,0 +1,11 @@
+name = "curl"
+version = "8.10.1"
+description = "curl: transfers with URLs (Mbed TLS for HTTPS); libcurl (static, headers)"
+license = "curl"
+homepage = "https://curl.se/"
+source = "https://curl.se/download/curl-8.10.1.tar.xz"
+sha256 = "73a4b0e99596a09fa5924a4fb7e4b995a85fda0d18a2c02ab9cf134bebce04ee"
+install = "bin"
+stela = "0.1.0"
+depends = []
+build-depends = ["mbedtls", "zlib"]
