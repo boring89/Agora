@@ -1,0 +1,7 @@
+# Downloaded sources, build trees and packages are not kept (README).
+/sources/
+/work/
+/dist/
+__pycache__/
+# Private signing keys never enter the repository (docs/signing.md).
+*.key
