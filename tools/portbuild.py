@@ -161,7 +161,7 @@ def unpack(src, into):
         shutil.copytree(src, into)
         return into
     os.makedirs(into, exist_ok=True)
-    if src.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".tar")):
+    if src.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".tar", ".crate")):
         with tarfile.open(src) as t:
             t.extractall(into, filter="data")
         entries = os.listdir(into)
@@ -373,6 +373,12 @@ def test(name):
              "-drive", f"format=raw,file=fat:rw:{esp}", "-display", "none", "-serial", "stdio",
              "-drive", f"if=none,id=sata1,format=raw,file={image}",
              "-device", "ide-hd,drive=sata1,bus=ide.1"]
+    # STELA P14: the System volume (fonts, the IME's dictionary, the
+    # tools), read only and never written (snapshot).
+    system = os.path.join(STELA_ROOT, "build", "system.img")
+    if os.path.exists(system):
+        args += ["-drive", f"if=none,id=sysdisk,format=raw,file={system},snapshot=on",
+                 "-device", "ide-hd,drive=sysdisk,bus=ide.2"]
     # qemu_test.py keeps its QMP socket in ./build.
     os.makedirs(os.path.join(work, "build"), exist_ok=True)
     r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=work)

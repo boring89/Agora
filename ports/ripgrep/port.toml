@@ -1,0 +1,11 @@
+name = "ripgrep"
+version = "15.2.0"
+description = "ripgrep (rg): searches folders for a regular expression, fast"
+license = "Unlicense OR MIT"
+homepage = "https://github.com/BurntSushi/ripgrep"
+source = "https://static.crates.io/crates/ripgrep/ripgrep-15.2.0.crate"
+sha256 = "a30750b6d0743bfdd2656ebbaf4555aa278c43144b84bc389bcbfa399485ec71"
+install = "bin"
+stela = "0.1.0"
+toolchain = "rust"
+depends = []
