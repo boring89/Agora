@@ -17,6 +17,7 @@ packaging them for `pkg` (STELA's package tool, `docs/pkg.md` there).
 ```
 ports/NAME/port.toml   name, version, source (url or copy-from) + sha256,
                        license, homepage, install (bin|app), depends,
+                       build-depends (ports built against: $DEPS),
                        stela (lowest STELA version), description
 ports/NAME/build.sh    builds into $OUT (env: SRC, OUT, MUSL_GCC,
                        STELA_ROOT, JOBS, PORT)
@@ -52,3 +53,17 @@ In STELA, `make test-ports` runs all of it (local only, not in CI).
 | tcc | 0.9.27 | LGPL-2.1-or-later | C compiler with musl's headers and libc |
 | busybox | 1.36.1 | GPL-2.0-only | a chosen set of applets |
 | rust-hello | 0.1.0 | 0BSD | Rust std example |
+| zlib | 1.3.1 | Zlib | library (static) and minigzip (P13) |
+| bzip2 | 1.0.8 | bzip2-1.0.6 | library and bzip2 |
+| xz | 5.6.3 | 0BSD | liblzma and xz |
+| libffi | 3.4.6 | MIT | library (python3's ctypes) |
+| ncurses | 6.5 | X11 | library, wide characters, built-in terminal descriptions |
+| readline | 8.2 | GPL-3.0-or-later | library (builds against ncurses) |
+| mbedtls | 3.6.2 | Apache-2.0 | TLS library (curl, git) |
+| python3 | 3.12.7 | PSF-2.0 | modules built in; dynamically linked to musl's libc.so |
+| git | 2.47.0 | GPL-2.0-only | HTTPS through libcurl; dash as its shell |
+| vim | 9.1.0800 | Vim | terminal only, no runtime files |
+| nano | 8.2 | GPL-3.0-or-later | |
+| curl | 8.10.1 | curl | Mbed TLS |
+| file | 5.45 | BSD-2-Clause | with its magic database |
+| less | 668 | GPL-3.0-or-later | |
