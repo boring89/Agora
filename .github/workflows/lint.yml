@@ -1,0 +1,18 @@
+# Every push and pull request: the recipes are well formed. Seconds; the
+# real build (build.yml) runs by hand or on a tag (docs/release.md).
+name: Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint the ports
+        # Every port.toml's required keys, official https source with a
+        # SHA-256, test.sh with a command and an expectation, an SPDX line
+        # on every patch, the 0BSD header on every tool, the README table.
+        run: python3 tools/portbuild.py lint

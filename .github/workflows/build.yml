@@ -1,15 +1,14 @@
 # Builds every port against a STELA release, tests each in QEMU, signs the
-# index and uploads the packages as a GitHub release of this repository
-# (STELA P14 K18, STELA's docs/release.md). Run by hand only
-# (workflow_dispatch): written in P14 and never run yet.
+# index and uploads the packages, the index and copies of every upstream
+# source as a DRAFT GitHub release of this repository (docs/release.md).
+# Started from STELA P14's version (K18); never run yet.
 #
 # Before the first run:
-# - The six ports with `copy-from` (lua, sqlite, kilo, dash, make, tcc)
-#   take their source from a local folder; switch them to their official
-#   URLs, or this fails at "Fetch sources".
-# - Add the secret PKG_SIGNING_KEY: the package key's 32-byte seed in hex
-#   (the public half replaces STELA's tools/pkg.pub). Never the System key:
-#   System images are signed on the releaser's own machine.
+# - Make the package key (docs/signing.md): `portbuild.py keygen
+#   agora-packages`, commit keys/agora-packages.pub, give STELA's
+#   tools/pkg.pub the same public key, and put the .key file's one line
+#   into the secret PKG_SIGNING_KEY of the `release` environment. Never
+#   the System key: STELA signs System images on the releaser's machine.
 # - STELA_REPO (a repository variable) if STELA is not boring89/STELA.
 name: Build ports
 
@@ -17,11 +16,13 @@ on:
   workflow_dispatch:
     inputs:
       stela_ref:
-        description: "STELA tag (or commit) to build against, e.g. v0.2.0"
-        required: true
-      release_tag:
-        description: "Tag of this repository's release (default: the same as stela_ref)"
+        description: "STELA tag (or commit) to build against; default: STELA_VERSION"
         required: false
+      release_tag:
+        description: "Tag of this repository's draft release; default: the pushed tag, else stela_ref"
+        required: false
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -29,31 +30,45 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      TAG: ${{ inputs.release_tag || inputs.stela_ref }}
+    timeout-minutes: 240
+    # The environment holds PKG_SIGNING_KEY (and may require a reviewer).
+    environment: release
     steps:
-      - name: Check out the ports
+      - name: Check out Agora
         uses: actions/checkout@v4
         with:
-          path: ports-repo
+          path: agora
+      - name: Which STELA, which release
+        id: which
+        run: |
+          ref='${{ inputs.stela_ref }}'
+          [ -n "$ref" ] || ref="$(cat agora/STELA_VERSION)"
+          tag='${{ inputs.release_tag }}'
+          if [ -z "$tag" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag="$ref"; fi
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Building against STELA $ref for release $tag"
       - name: Check out STELA
         uses: actions/checkout@v4
         with:
           repository: ${{ vars.STELA_REPO || 'boring89/STELA' }}
-          ref: ${{ inputs.stela_ref }}
+          ref: ${{ steps.which.outputs.ref }}
           path: STELA
       - name: Install packages
-        # As STELA's CI, and python3-cryptography for the signature.
+        # As STELA's CI, plus python3-cryptography for the signature.
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3 python3-cryptography mtools gdisk gcc binutils-m68k-linux-gnu xz-utils bzip2 unzip
+      - name: Lint
+        run: python3 agora/tools/portbuild.py lint
       - name: Upstream sources
         # Fetched once per set of recipes; portbuild checks each SHA-256.
         uses: actions/cache@v4
         with:
-          path: ports-repo/sources
-          key: sources-${{ hashFiles('ports-repo/ports/*/port.toml') }}
+          path: agora/sources
+          key: sources-${{ hashFiles('agora/ports/*/port.toml') }}
       - name: Fetch sources
-        run: python3 ports-repo/tools/portbuild.py fetch all
+        run: python3 agora/tools/portbuild.py fetch all
         env:
           STELA_ROOT: ${{ github.workspace }}/STELA
       - name: musl and libchewing tarballs
@@ -70,26 +85,36 @@ jobs:
         working-directory: STELA
         run: cargo --version && make musl esp test-images ehfs-tools
       - name: Build, package and test every port
-        run: python3 ports-repo/tools/portbuild.py all all
+        run: python3 agora/tools/portbuild.py all all
         env:
           STELA_ROOT: ${{ github.workspace }}/STELA
       - name: Signed index
+        # The urls are absolute until STELA's pkg joins relative ones
+        # (docs/index.md): this release's download folder.
         run: |
           umask 077
           printf '%s\n' "$PKG_SIGNING_KEY" > "$RUNNER_TEMP/pkg-signing.key"
-          PKG_SIGNING_KEY="$RUNNER_TEMP/pkg-signing.key" python3 ports-repo/tools/portbuild.py index
+          PKG_SIGNING_KEY="$RUNNER_TEMP/pkg-signing.key" python3 agora/tools/portbuild.py index
           rm -f "$RUNNER_TEMP/pkg-signing.key"
+          for pub in agora/keys/*.pub; do
+            [ -e "$pub" ] && python3 agora/tools/portbuild.py verify "$pub" agora/dist/index.json
+          done
         env:
           STELA_ROOT: ${{ github.workspace }}/STELA
           PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
-      - name: Release
-        # A draft: the releaser looks at it and publishes it by hand.
-        working-directory: ports-repo/dist
+          PORTS_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.which.outputs.tag }}/
+      - name: Upstream sources for the release
+        run: python3 agora/tools/portbuild.py sources agora/dist/sources
+      - name: Release (draft)
+        # The releaser looks at the draft and publishes it by hand.
+        working-directory: agora/dist
         run: |
-          sha256sum *.tar index.json index.json.sig > SHA256SUMS
+          sha256sum *.tar index.json index.json.sig sources/* | sed 's# sources/# #' > SHA256SUMS
           gh release create "$TAG" --draft --repo "$GITHUB_REPOSITORY" \
-            --title "Ports for STELA ${{ inputs.stela_ref }}" \
-            --notes "Built against STELA ${{ inputs.stela_ref }}; every package tested in QEMU only." \
-            *.tar index.json index.json.sig SHA256SUMS
+            --title "Ports for STELA $REF" \
+            --notes "Built against STELA $REF (Agora $GITHUB_SHA); every package tested in QEMU only. sources/ are the unchanged upstream tarballs (SOURCES.txt)." \
+            *.tar index.json index.json.sig SHA256SUMS sources/*
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.which.outputs.tag }}
+          REF: ${{ steps.which.outputs.ref }}
