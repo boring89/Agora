@@ -7,11 +7,10 @@ and the packages `pkg` (STELA's package tool, `docs/pkg.md` there)
 installs from them. *Agora* (ἀγορά) is the marketplace of a Greek city,
 next to STELA's Mouseion, Kalamos and Periplus.
 
-> Status (2026-10-23): the recipes (25 ports) still live in
-> `~/stela-ports` (the working name, last commit 8d9c3c6) and move here
-> next. This repository holds the design: this README, `LICENSE` and
-> `docs/`. Nothing is published yet; the signing keys STELA ships are
-> test keys.
+> Status (2026-10-23): the recipes moved here from `~/stela-ports` (the
+> working name) with their history; 25 ports. Nothing is published yet:
+> no GitHub repository, no release, and the signing keys STELA ships are
+> test keys (`keys/README.md`).
 
 ## Licensing
 
@@ -48,7 +47,8 @@ ports/NAME/build.sh    builds into $OUT (env: SRC, OUT, MUSL_GCC,
 ports/NAME/test.sh     what to type in STELA's shell and what must appear
 ports/NAME/files/      test files, put in Data:/test/
 ports/NAME/patches/    *.patch, applied with patch -p1 before building
-tools/portbuild.py     fetch / build / package / test / index / mirror
+tools/portbuild.py     fetch / build / package / test / index / lint /
+                       sources / keygen / sign / verify
 keys/                  public keys (hex) that signed indexes are checked
                        against                        (docs/signing.md)
 docs/                  port.toml spec, index.json spec, signing, releases
@@ -66,6 +66,7 @@ python3 tools/portbuild.py list
 python3 tools/portbuild.py all lua        # fetch, build, package, test in QEMU
 python3 tools/portbuild.py all all
 python3 tools/portbuild.py index          # dist/index.json (+ .sig with PKG_SIGNING_KEY)
+python3 tools/portbuild.py lint           # what CI checks on every push
 ```
 
 In STELA, `make test-ports` runs all of it (local only, not in STELA's CI).

@@ -31,10 +31,13 @@ the hash of every `port.toml`, STELA built with `make musl esp
 test-images ehfs-tools`, `portbuild.py all all`, index signed from the
 secret `PKG_SIGNING_KEY` (written to `$RUNNER_TEMP` under `umask 077`
 and removed), then a **draft** release with the tars, index, `.sig` and
-`SHA256SUMS`. Agora keeps all of that and adds: `STELA_VERSION` as the
-default of `stela_ref`, the `v*` tag trigger, the `sources/` copies and
-`SOURCES.txt` among the assets, the `lint` workflow, and Agora's own
-index tool in place of STELA's `pkgsign.py`.
+`SHA256SUMS`. Agora's `build.yml` keeps all of that and adds: `STELA_VERSION` as the
+default of `stela_ref`, the `v*` tag trigger, the `release` environment
+(holds the secret, may require a reviewer), a `lint` step, a `verify`
+against `keys/*.pub`, `PORTS_URL` set to the release's download folder,
+the `sources/` copies and `SOURCES.txt` among the assets (`portbuild.py
+sources`), and Agora's own signing in `portbuild.py` in place of STELA's
+`pkgsign.py`.
 
 ## A release
 
@@ -42,10 +45,10 @@ Assets of the GitHub Release `vX.Y.Z[-N]`:
 
 ```
 NAME-VERSION-REVISION-x86_64.tar   every package
-index.json, index.json.sig         the signed index (urls relative)
+index.json, index.json.sig         the signed index
 SHA256SUMS                         of every asset
-sources/NAME-VERSION.tar.*         every upstream tarball, unchanged
-SOURCES.txt                        name, version, URL, SHA-256, license per port
+NAME-VERSION.tar.*                 every upstream tarball, unchanged (release assets are flat)
+SOURCES.txt                        name, version, license, SHA-256, URL, file per port
 ```
 
 The patches are in the tagged tree. STELA's own release job (its
@@ -66,9 +69,10 @@ if it is ever needed, is a one-line redirect page, not a moving tag.
 - A mirror is a copy of a release's assets at another URL: because the
   index's `url`s are relative, `index.json` and `.sig` are copied
   unchanged and still verify.
-- `python3 tools/portbuild.py mirror DIR [URL]` downloads a release
-  (default: the one for `STELA_VERSION`) into `DIR`, checking every
-  SHA-256 against the index; `DIR` on a USB stick is an offline source.
+- Planned: `python3 tools/portbuild.py mirror DIR [URL]` downloads a
+  release (default: the one for `STELA_VERSION`) into `DIR`, checking
+  every SHA-256 against the index; `DIR` on a USB stick is an offline
+  source. Written once a release exists to download.
 - On STELA, `pkg install STICK:/python3-3.12.7-1-x86_64.tar` works
   today, one file at a time without dependencies; the ask is
   `pkg install --from STICK:/agora NAME` (reads the index there,

@@ -36,13 +36,14 @@ gains checks for them one by one (`docs/stela-requests.md`).
 |---|---|---|
 | `format` | 0.1.0 | Always 1. |
 | `built-for` | Agora 1 | The STELA release these packages were built and tested on (`STELA_VERSION`). `pkg` compares major.minor with the running system and refuses an index for a newer one; a release of Agora exists per STELA release (`docs/release.md`). |
-| `serial` | Agora 1 | Increases with every published index. `pkg update` refuses a `serial` lower than the one it already has, so a signed but old index cannot be replayed to hide an update. |
+| `serial` | Agora 1 | Increases with every published index (the Unix time the index was made, so no state is kept). `pkg update` refuses a `serial` lower than the one it already has, so a signed but old index cannot be replayed to hide an update. |
 | `generated` | Agora 1 | When the index was made (UTC, RFC 3339); informational. |
 | `system` | STELA P14 | Optional, for `stela-update`: `{"version", "url", "sha256", "size"}` of the System image for this release (`pkgcore::parse_system`, STELA's `docs/system.md` §6). The index (package key) vouches for the file's SHA-256; the image's own trailer carries the System key's signature. `url` relative like the packages'. |
 | `packages[].version` | 0.1.0 | `UPSTREAM-REVISION`; what `pkg list` shows and `pkg upgrade` compares as text. |
+| `packages[].homepage` | Agora 1 | The program's site. |
 | `packages[].upstream`, `revision` | Agora 1 | The two parts, for tools. |
 | `packages[].stela` | Agora 1 | Lowest STELA version the package needs; `pkg install` refuses on an older system. |
-| `packages[].url` | 0.1.0 | Was absolute. Becomes **relative to the index's own location** (a bare file name), so one index serves from GitHub Releases, a mirror or a folder unchanged. Absolute URLs stay allowed. |
+| `packages[].url` | 0.1.0 | Was absolute. Becomes **relative to the index's own location** (a bare file name), so one index serves from GitHub Releases, a mirror or a folder unchanged. Absolute URLs stay allowed: `portbuild.py index` prefixes `PORTS_URL` when it is set, and releases set it to their download folder until STELA's `pkg` joins relative urls (STELA P15). |
 | the rest | 0.1.0 | As in STELA's `docs/pkg.md` §3. |
 
 ## Signature
@@ -55,8 +56,9 @@ it against `Initrd:/certs/pkg.pub`.
 
 `NAME-VERSION-REVISION-x86_64.tar`: ustar, owner 0, mtime 0, top-level
 `PKGINFO` then `bin/`, `lib/`, `include/`, `share/` or `Name.app/`.
-`PKGINFO` gains `revision = ` and `stela = ` lines; `version = ` holds
-`UPSTREAM-REVISION`.
+`PKGINFO` gains `upstream = `, `revision = `, `homepage = ` and `stela = `
+lines; `version = ` holds `UPSTREAM-REVISION` (STELA's `pkgcore` reads
+the keys it knows and skips the rest).
 
 ## Compatibility rules
 

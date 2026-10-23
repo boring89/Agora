@@ -16,7 +16,7 @@ and run as sandboxed programs; the System image is the system.
 On the user's machine, with Python's `cryptography`:
 
 ```bash
-python3 tools/keygen.py agora-packages    # writes agora-packages.key (hex seed, mode 600) and keys/agora-packages.pub
+python3 tools/portbuild.py keygen agora-packages   # agora-packages.key (hex seed, mode 600) + keys/agora-packages.pub
 ```
 
 or with OpenSSL (`openssl genpkey -algorithm ed25519`) and a conversion
@@ -34,7 +34,7 @@ packages with the test key, read from `Initrd:/certs/` only in
 
 ```bash
 PKG_SIGNING_KEY=~/agora-packages.key python3 tools/portbuild.py index
-python3 tools/verify.py keys/agora-packages.pub dist/index.json       # what pkg does
+python3 tools/portbuild.py verify keys/agora-packages.pub dist/index.json   # what pkg does, plus every listed file
 ```
 
 In the release workflow the key comes from the secret
