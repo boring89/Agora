@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 YuanChi Hsieh
 # SPDX-License-Identifier: 0BSD
-"""Build, package and test STELA ports.
+"""Build, package and test Agora's ports for STELA.
 
-    portbuild.py fetch   NAME...   download (or copy) the source, check SHA-256
+    portbuild.py fetch   NAME...   download the source, check its SHA-256
     portbuild.py build   NAME...   unpack and run ports/NAME/build.sh
-    portbuild.py package NAME...   dist/NAME-VERSION-x86_64.tar (ustar)
+    portbuild.py package NAME...   dist/NAME-VERSION-REVISION-x86_64.tar (ustar)
     portbuild.py test    NAME...   boot STELA in QEMU with the package on a
                                    test Data volume and run ports/NAME/test.sh
     portbuild.py index             dist/index.json (every package in dist/),
@@ -13,18 +13,29 @@
                                    PKG_SIGNING_KEY when it is set
     portbuild.py all     NAME...   fetch, build, package, test
     portbuild.py list              the ports and their versions
+    portbuild.py lint              check every port.toml, patch, test and
+                                   the README (what CI runs on every push)
+    portbuild.py sources DIR       copy every port's upstream source into
+                                   DIR with a SOURCES.txt (for a release)
+    portbuild.py keygen NAME       a new signing key: NAME.key + keys/NAME.pub
+    portbuild.py sign KEY INDEX    INDEX.sig
+    portbuild.py verify PUB INDEX  the signature and every listed package
 
 NAME may be "all". The environment: STELA_ROOT (the STELA checkout,
 default ../STELA next to this repository); MUSL_GCC (default
-$STELA_ROOT/build/musl/install/bin/musl-gcc, made by `make musl` there).
+$STELA_ROOT/build/musl/install/bin/musl-gcc, made by `make musl` there);
+PORTS_URL (a prefix for the index's urls; unset, they are file names
+relative to the index). STELA_VERSION (a file here) names the STELA tag
+the packages are built for.
 
-port.toml (TOML subset: key = "string" | number | [list of strings]):
-    name, version, description, license, homepage, stela (lowest STELA
-    version), install ("bin" or "app"), depends (list: packages it needs
-    installed), build-depends (list: ports whose headers and libraries it
-    builds against; P13), and
-    source = URL, or copy-from = a path (~ allowed); sha256; file (the
-    name to store it as, default the URL's last part).
+port.toml (TOML subset: key = "string" | number | [list of strings];
+docs/port-toml.md): name, version (upstream's), revision (this port's,
+from 1), description, license (SPDX), homepage, stela (lowest STELA
+version), install ("bin" or "app"), depends (list: packages it needs
+installed), build-depends (list: ports whose headers and libraries it
+builds against), toolchain ("musl", the default, or "rust"), and
+source = the official URL; sha256; file (the name to store it as,
+default the URL's last part); or local = a folder inside the port.
 
 build.sh runs with SRC (the unpacked source; for a single-file source
 the folder holding it), OUT (what the package holds: bin/, lib/, share/
@@ -46,6 +57,7 @@ The package is unpacked into Data:/Programs/NAME/ and ports/NAME/files/
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -62,7 +74,8 @@ MUSL_GCC = os.environ.get(
     "MUSL_GCC", os.path.join(STELA_ROOT, "build", "musl", "install", "bin", "musl-gcc"))
 # Data partition of STELA's build/images/ahci.img (tools/make_test_images.py).
 DATA_OFFSET = 83968
-URL_BASE = os.environ.get("PORTS_URL", "https://10.0.2.2:8643/pkg/")
+URL_BASE = os.environ.get("PORTS_URL", "")
+STELA_VERSION_FILE = os.path.join(HERE, "STELA_VERSION")
 
 
 def fail(msg):
@@ -99,15 +112,19 @@ def port(name):
         fail(f"no port {name}")
     with open(path, encoding="utf-8") as f:
         meta = parse_toml(f.read())
-    for key in ("name", "version", "license", "description", "install"):
+    for key in ("name", "version", "revision", "license", "description", "install", "stela"):
         if key not in meta:
             fail(f"{name}: port.toml lacks {key}")
-    if "local" not in meta and "sha256" not in meta:
-        fail(f"{name}: port.toml lacks sha256")
+    if not isinstance(meta["revision"], int) or meta["revision"] < 1:
+        fail(f"{name}: revision must be a whole number from 1")
+    if "copy-from" in meta:
+        fail(f"{name}: copy-from is gone; name the official URL in source (docs/port-toml.md)")
+    if ("source" in meta) == ("local" in meta):
+        fail(f"{name}: give exactly one of source and local")
     if "local" in meta:
         meta.setdefault("sha256", "")
-    elif ("source" in meta) == ("copy-from" in meta):
-        fail(f"{name}: give exactly one of source, copy-from and local")
+    elif "sha256" not in meta:
+        fail(f"{name}: port.toml lacks sha256")
     meta.setdefault("depends", [])
     meta.setdefault("build-depends", [])
     return meta
@@ -130,8 +147,7 @@ def sha256(path):
 def source_file(meta):
     if "file" in meta:
         return os.path.join(SOURCES, meta["file"])
-    origin = meta.get("source") or meta["copy-from"]
-    return os.path.join(SOURCES, os.path.basename(origin))
+    return os.path.join(SOURCES, os.path.basename(meta["source"]))
 
 
 def fetch(name):
@@ -142,13 +158,10 @@ def fetch(name):
     os.makedirs(SOURCES, exist_ok=True)
     dest = source_file(meta)
     if not os.path.exists(dest):
-        if "copy-from" in meta:
-            shutil.copyfile(os.path.expanduser(meta["copy-from"]), dest)
-        else:
-            print(f"{name}: downloading {meta['source']}")
-            tmp = dest + ".part"
-            urllib.request.urlretrieve(meta["source"], tmp)
-            os.replace(tmp, dest)
+        print(f"{name}: downloading {meta['source']}")
+        tmp = dest + ".part"
+        urllib.request.urlretrieve(meta["source"], tmp)
+        os.replace(tmp, dest)
     got = sha256(dest)
     if got != meta["sha256"]:
         fail(f"{name}: {os.path.basename(dest)} has SHA-256 {got}, expected {meta['sha256']}")
@@ -245,8 +258,25 @@ def build(name):
     print(f"{name}: built")
 
 
+def package_version(meta):
+    """What pkg shows and compares: upstream's version, then the port's
+    revision (5.4.7-1)."""
+    return f"{meta['version']}-{meta['revision']}"
+
+
 def package_path(meta):
-    return os.path.join(DIST, f"{meta['name']}-{meta['version']}-x86_64.tar")
+    return os.path.join(DIST, f"{meta['name']}-{package_version(meta)}-x86_64.tar")
+
+
+def built_for():
+    """The STELA release the packages are for: STELA_VERSION without
+    its leading v."""
+    try:
+        with open(STELA_VERSION_FILE, encoding="utf-8") as f:
+            tag = f.read().strip()
+    except OSError:
+        fail("no STELA_VERSION file (the STELA tag the ports are built for)")
+    return tag[1:] if tag.startswith("v") else tag
 
 
 def package(name):
@@ -257,8 +287,12 @@ def package(name):
     os.makedirs(DIST, exist_ok=True)
     info = os.path.join(WORK, name, "PKGINFO")
     with open(info, "w", encoding="utf-8") as f:
-        for key in ("name", "version", "description", "license", "install"):
-            f.write(f"{key} = {meta[key]}\n")
+        f.write(f"name = {meta['name']}\n")
+        f.write(f"version = {package_version(meta)}\n")
+        f.write(f"upstream = {meta['version']}\n")
+        f.write(f"revision = {meta['revision']}\n")
+        for key in ("description", "license", "homepage", "install", "stela"):
+            f.write(f"{key} = {meta.get(key, '')}\n")
         f.write(f"depends = {' '.join(meta['depends'])}\n")
     dest = package_path(meta)
 
@@ -389,7 +423,18 @@ def test(name):
 
 
 def index():
+    """dist/index.json (docs/index.md): format 1 with the fields STELA's
+    pkg knows plus built-for, serial, generated and, per package, stela,
+    revision and upstream (pkg ignores what it does not know)."""
+    import time
     os.makedirs(DIST, exist_ok=True)
+    release = built_for()
+    stela_version = os.path.join(STELA_ROOT, "VERSION")
+    if os.path.exists(stela_version):
+        with open(stela_version, encoding="utf-8") as f:
+            have = f.read().strip()
+        if have != release:
+            print(f"index: warning: STELA_VERSION says {release}, {STELA_ROOT} is {have}")
     entries = []
     for name in names(["all"]):
         meta = port(name)
@@ -398,28 +443,216 @@ def index():
             continue
         entries.append({
             "name": meta["name"],
-            "version": meta["version"],
+            "version": package_version(meta),
+            "upstream": meta["version"],
+            "revision": meta["revision"],
             "description": meta["description"],
             "license": meta["license"],
+            "homepage": meta.get("homepage", ""),
             "install": meta["install"],
             "depends": meta["depends"],
+            "stela": meta["stela"],
             "size": os.path.getsize(pkg),
             "sha256": sha256(pkg),
             "file": os.path.basename(pkg),
             "url": URL_BASE + os.path.basename(pkg),
         })
+    now = int(time.time())
+    doc = {
+        "format": 1,
+        "built-for": release,
+        # Every published index has a larger serial than the one before
+        # it; the time it was made does that without any state to keep.
+        "serial": now,
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "packages": entries,
+    }
     dest = os.path.join(DIST, "index.json")
     with open(dest, "w", encoding="utf-8") as f:
-        json.dump({"format": 1, "packages": entries}, f, indent=1, sort_keys=True)
+        json.dump(doc, f, indent=1, sort_keys=True)
         f.write("\n")
-    print(f"index: {len(entries)} packages in {os.path.relpath(dest, HERE)}")
-    # Signed with ed25519 (STELA's tools/pkgsign.py) when PKG_SIGNING_KEY
-    # names the key file: dist/index.json.sig, what `pkg update` checks.
+    print(f"index: {len(entries)} packages for STELA {release} in {os.path.relpath(dest, HERE)}")
+    # Signed with ed25519 when PKG_SIGNING_KEY names the key file:
+    # dist/index.json.sig, what `pkg update` checks (docs/signing.md).
     key = os.environ.get("PKG_SIGNING_KEY")
     if key:
-        subprocess.run([sys.executable, os.path.join(STELA_ROOT, "tools", "pkgsign.py"),
-                        "sign", key, dest], check=True)
+        sign(key, dest)
         print(f"index: signed with {key}")
+
+
+# --- signing (docs/signing.md) -------------------------------------------
+#
+# Keys are ed25519 (RFC 8032). A private key file holds the 32-byte seed
+# in hex; a public key file the 32-byte public key in hex: the formats
+# STELA's Initrd:/certs/pkg.pub and `pkg` use. index.json.sig is the hex
+# signature of the exact bytes of index.json.
+
+
+def _crypto():
+    try:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+    except ImportError:
+        fail("signing needs Python's cryptography module (python3-cryptography)")
+    return ed25519, serialization
+
+
+def keygen(name):
+    """A new random key: NAME.key (the seed, mode 600, never committed)
+    and keys/NAME.pub."""
+    ed25519, serialization = _crypto()
+    key = ed25519.Ed25519PrivateKey.generate()
+    seed = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                             serialization.NoEncryption())
+    pub = key.public_key().public_bytes(serialization.Encoding.Raw,
+                                        serialization.PublicFormat.Raw)
+    keyfile = f"{name}.key"
+    if os.path.exists(keyfile):
+        fail(f"{keyfile} exists; not overwriting a key")
+    fd = os.open(keyfile, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(seed.hex() + "\n")
+    os.makedirs(os.path.join(HERE, "keys"), exist_ok=True)
+    pubfile = os.path.join(HERE, "keys", f"{name}.pub")
+    with open(pubfile, "w") as f:
+        f.write(pub.hex() + "\n")
+    print(f"keygen: {keyfile} (keep it off the repository) and {os.path.relpath(pubfile, HERE)}")
+
+
+def sign(keyfile, index_path):
+    ed25519, _ = _crypto()
+    with open(keyfile) as f:
+        key = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(f.read().strip()))
+    with open(index_path, "rb") as f:
+        sig = key.sign(f.read())
+    with open(index_path + ".sig", "w") as f:
+        f.write(sig.hex() + "\n")
+
+
+def verify(pubfile, index_path):
+    """What pkg does: the signature is PUBFILE's, and every package the
+    index lists is next to it with the recorded SHA-256 and size."""
+    ed25519, _ = _crypto()
+    from cryptography.exceptions import InvalidSignature
+    try:
+        with open(pubfile) as f:
+            key = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(f.read().strip()))
+        with open(index_path + ".sig") as f:
+            sig = bytes.fromhex(f.read().strip())
+        with open(index_path, "rb") as f:
+            data = f.read()
+        key.verify(sig, data)
+    except (OSError, ValueError, InvalidSignature) as e:
+        fail(f"verify: the signature is not {pubfile}'s ({e.__class__.__name__})")
+    doc = json.loads(data)
+    if doc.get("format") != 1:
+        fail("verify: not a format 1 index")
+    folder = os.path.dirname(os.path.abspath(index_path))
+    for p in doc["packages"]:
+        path = os.path.join(folder, p["file"])
+        if not os.path.exists(path):
+            fail(f"verify: {p['file']} is listed but not here")
+        if os.path.getsize(path) != p["size"] or sha256(path) != p["sha256"]:
+            fail(f"verify: {p['file']} does not match the index")
+    print(f"verify: index for STELA {doc.get('built-for', '?')}, serial {doc.get('serial', '?')}, "
+          f"{len(doc['packages'])} packages, signature ok")
+
+
+def sources(folder):
+    """A release carries every upstream source it was built from (the
+    GPL ports' source obligation, applied to all): copies of the fetched
+    files and SOURCES.txt (name, version, license, SHA-256, URL, file)."""
+    os.makedirs(folder, exist_ok=True)
+    lines = []
+    for name in names(["all"]):
+        meta = port(name)
+        if "local" in meta:
+            lines.append(f"{meta['name']} {meta['version']} {meta['license']} - - "
+                         f"(in ports/{name}/{meta['local']})")
+            continue
+        src = fetch(name)
+        shutil.copyfile(src, os.path.join(folder, os.path.basename(src)))
+        lines.append(f"{meta['name']} {meta['version']} {meta['license']} {meta['sha256']} "
+                     f"{meta['source']} {os.path.basename(src)}")
+    with open(os.path.join(folder, "SOURCES.txt"), "w", encoding="utf-8") as f:
+        f.write("# name version license sha256 url file\n")
+        f.write("\n".join(lines) + "\n")
+    print(f"sources: {len(lines)} ports in {folder}")
+
+
+# --- lint (what CI runs on every push) -------------------------------------
+
+NAME_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+VERSION_OK = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def lint():
+    problems = []
+
+    def bad(msg):
+        problems.append(msg)
+
+    with open(os.path.join(HERE, "README.md"), encoding="utf-8") as f:
+        readme = f.read()
+    for name in names(["all"]):
+        folder = os.path.join(PORTS, name)
+        meta = port(name)  # the required keys, revision, source/local
+        if meta["name"] != name or not NAME_OK.match(name) or name in (".", ".."):
+            bad(f"{name}: name must equal the folder name and be [A-Za-z0-9._-]")
+        if not VERSION_OK.match(str(meta["stela"])):
+            bad(f"{name}: stela must be major.minor.patch, not {meta['stela']!r}")
+        if meta["install"] not in ("bin", "app"):
+            bad(f"{name}: install must be bin or app")
+        for key in ("license", "description", "homepage"):
+            if not str(meta.get(key, "")).strip():
+                bad(f"{name}: {key} is empty")
+        if meta.get("toolchain", "musl") not in ("musl", "rust"):
+            bad(f"{name}: toolchain must be musl or rust")
+        if "source" in meta:
+            src = meta["source"]
+            with open(os.path.join(folder, "port.toml"), encoding="utf-8") as f:
+                toml_text = f.read()
+            if src.startswith("http://") and "no HTTPS" not in toml_text:
+                bad(f"{name}: source is http://; say '# ... no HTTPS' in port.toml if the site has none")
+            elif not src.startswith(("https://", "http://")):
+                bad(f"{name}: source must be an https:// URL")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(meta["sha256"])):
+                bad(f"{name}: sha256 must be 64 hex digits")
+        for dep in meta["depends"] + meta["build-depends"]:
+            if not os.path.isdir(os.path.join(PORTS, dep)):
+                bad(f"{name}: depends on {dep}, which is not a port")
+        if not os.path.exists(os.path.join(folder, "build.sh")):
+            bad(f"{name}: no build.sh")
+        if not os.path.exists(os.path.join(folder, "test.sh")):
+            bad(f"{name}: no test.sh")
+        else:
+            kinds = [k for k, _ in parse_test(name)]
+            if "$" not in kinds or ">" not in kinds:
+                bad(f"{name}: test.sh needs at least one $ command and one > line")
+        patches = os.path.join(folder, "patches")
+        if os.path.isdir(patches):
+            for pname in sorted(os.listdir(patches)):
+                if not pname.endswith(".patch"):
+                    continue
+                with open(os.path.join(patches, pname), encoding="utf-8", errors="replace") as f:
+                    first = f.readline().strip()
+                if not first.startswith("SPDX-License-Identifier: "):
+                    bad(f"{name}: patches/{pname} must start with SPDX-License-Identifier:")
+        if f"| {name} |" not in readme:
+            bad(f"{name}: not in README.md's table")
+    tools = os.path.join(HERE, "tools")
+    for tname in sorted(os.listdir(tools)):
+        if tname.endswith(".py"):
+            with open(os.path.join(tools, tname), encoding="utf-8") as f:
+                head = f.read(400)
+            if "SPDX-License-Identifier: 0BSD" not in head:
+                bad(f"tools/{tname}: no 0BSD SPDX header")
+    built_for()  # STELA_VERSION exists
+    for msg in problems:
+        print(f"lint: {msg}")
+    if problems:
+        fail(f"{len(problems)} problem(s)")
+    print(f"lint: {len(names(['all']))} ports ok")
 
 
 def main():
@@ -429,6 +662,22 @@ def main():
     cmd, rest = sys.argv[1], sys.argv[2:]
     if cmd == "index":
         index()
+        return
+    if cmd == "lint":
+        lint()
+        return
+    if cmd == "sources" and len(rest) == 1:
+        sources(rest[0])
+        return
+    if cmd == "keygen" and len(rest) == 1:
+        keygen(rest[0])
+        return
+    if cmd == "sign" and len(rest) == 2:
+        sign(rest[0], rest[1])
+        print(f"sign: {rest[1]}.sig")
+        return
+    if cmd == "verify" and len(rest) == 2:
+        verify(rest[0], rest[1])
         return
     if cmd == "list":
         for n in names(["all"]):

@@ -1,5 +1,6 @@
 name = "tcc"
 version = "0.9.27"
+revision = 1
 description = "The Tiny C Compiler, with musl's headers and C library: compiles C programs on STELA"
 license = "LGPL-2.1-or-later"
 homepage = "https://bellard.org/tcc/"

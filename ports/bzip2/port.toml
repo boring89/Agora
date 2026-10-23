@@ -1,5 +1,6 @@
 name = "bzip2"
 version = "1.0.8"
+revision = 1
 description = "bzip2: the library (static, headers) and the bzip2 program"
 license = "bzip2-1.0.6"
 homepage = "https://sourceware.org/bzip2/"

@@ -1,5 +1,6 @@
 name = "readline"
 version = "8.2"
+revision = 1
 description = "GNU Readline: line editing and history (static, headers)"
 license = "GPL-3.0-or-later"
 homepage = "https://tiswww.case.edu/php/chet/readline/rltop.html"

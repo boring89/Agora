@@ -1,5 +1,6 @@
 name = "libffi"
 version = "3.4.6"
+revision = 1
 description = "libffi: calling functions by their signature at run time (static, headers)"
 license = "MIT"
 homepage = "https://sourceware.org/libffi/"

@@ -1,11 +1,12 @@
 name = "fd"
 version = "10.5.0"
+revision = 1
 description = "fd: finds files by name, a simple, fast find"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/sharkdp/fd"
 source = "https://static.crates.io/crates/fd-find/fd-find-10.5.0.crate"
 sha256 = "f35becce49c551724fd26d9824ec01d6578868cecbcc4e3d060658f9f8ad1e4d"
 install = "bin"
-stela = "0.1.0"
+stela = "0.2.0"
 toolchain = "rust"
 depends = []

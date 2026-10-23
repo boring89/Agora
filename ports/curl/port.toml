@@ -1,5 +1,6 @@
 name = "curl"
 version = "8.10.1"
+revision = 1
 description = "curl: transfers with URLs (Mbed TLS for HTTPS); libcurl (static, headers)"
 license = "curl"
 homepage = "https://curl.se/"

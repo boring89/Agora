@@ -1,5 +1,6 @@
 name = "file"
 version = "5.45"
+revision = 1
 description = "file: what kind of file it is (libmagic and its database)"
 license = "BSD-2-Clause"
 homepage = "https://www.darwinsys.com/file/"

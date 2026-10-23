@@ -1,5 +1,6 @@
 name = "nano"
 version = "8.2"
+revision = 1
 description = "GNU nano: a small text editor"
 license = "GPL-3.0-or-later"
 homepage = "https://www.nano-editor.org/"

@@ -1,5 +1,6 @@
 name = "python3"
 version = "3.12.7"
+revision = 1
 description = "Python 3.12 (static; zlib, bz2, lzma, ctypes, sqlite3 built in; no ssl)"
 license = "PSF-2.0"
 homepage = "https://www.python.org/"

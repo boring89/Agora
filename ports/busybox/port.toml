@@ -1,5 +1,6 @@
 name = "busybox"
 version = "1.36.1"
+revision = 1
 description = "BusyBox: sh, ls, vi, sed, awk, tar, gzip and other small tools in one program"
 license = "GPL-2.0-only"
 homepage = "https://busybox.net/"

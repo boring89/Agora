@@ -1,5 +1,6 @@
 name = "kilo"
 version = "0.0.1"
+revision = 1
 description = "kilo: a small text editor in one C file"
 license = "BSD-2-Clause"
 homepage = "https://github.com/antirez/kilo"

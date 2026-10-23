@@ -1,5 +1,6 @@
 name = "less"
 version = "668"
+revision = 1
 description = "less: a pager"
 license = "GPL-3.0-or-later"
 homepage = "https://www.greenwoodsoftware.com/less/"

@@ -1,5 +1,6 @@
 name = "git"
 version = "2.47.0"
+revision = 1
 description = "Git: version control (HTTPS through libcurl and Mbed TLS)"
 license = "GPL-2.0-only"
 homepage = "https://git-scm.com/"

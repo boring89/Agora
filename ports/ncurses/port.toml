@@ -1,5 +1,6 @@
 name = "ncurses"
 version = "6.5"
+revision = 1
 description = "ncurses: terminal handling (static, wide characters, built-in terminal descriptions)"
 license = "X11"
 homepage = "https://invisible-island.net/ncurses/"
