@@ -5,7 +5,7 @@ Two ed25519 keys, two very different lives:
 | Key | Signs | Private half lives | Public half |
 |---|---|---|---|
 | **package key** | `index.json` of every Agora release | the user's machine (offline copy) **and** a GitHub Actions secret, so the release workflow can sign | `keys/agora-packages.pub`, STELA's `tools/pkg.pub` → `Initrd:/certs/pkg.pub` |
-| **system key** | STELA's System images (`stela-update`, STELA P14) | the user's machine only; never in CI | STELA's `tools/system.pub` → `Initrd:/certs/system.pub` |
+| **system key** | STELA's System images (`stela-update`, STELA P14) | the user's machine only; never in CI | STELA's `tools/system.pub` → `Initrd:/certs/system.pub` (exists since STELA a568631; a test key until replaced) |
 
 Why two: a leaked CI secret must not be able to sign a System image
 that the loader boots automatically. Packages are installed on request
@@ -38,8 +38,12 @@ python3 tools/verify.py keys/agora-packages.pub dist/index.json       # what pkg
 ```
 
 In the release workflow the key comes from the secret
-`AGORA_PACKAGE_KEY` (the hex seed), only in the `release` environment,
-only on `workflow_dispatch` and `v*` tags (`docs/release.md`).
+`PKG_SIGNING_KEY` (the hex seed; the name STELA's P14 `build.yml` and
+`docs/release.md` use), only in the `release` environment, only on
+`workflow_dispatch` and `v*` tags (`docs/release.md`). STELA's
+`tools/pkgsign.py verify PUB INDEX` checks a signed index against the
+`.tar` files next to it; STELA's `make release` reuses a ports index
+only when that check passes.
 
 ## Rotation
 

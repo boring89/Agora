@@ -38,7 +38,7 @@ gains checks for them one by one (`docs/stela-requests.md`).
 | `built-for` | Agora 1 | The STELA release these packages were built and tested on (`STELA_VERSION`). `pkg` compares major.minor with the running system and refuses an index for a newer one; a release of Agora exists per STELA release (`docs/release.md`). |
 | `serial` | Agora 1 | Increases with every published index. `pkg update` refuses a `serial` lower than the one it already has, so a signed but old index cannot be replayed to hide an update. |
 | `generated` | Agora 1 | When the index was made (UTC, RFC 3339); informational. |
-| `system` | STELA P14 | Reserved for `stela-update` (the System image: version, file, size, SHA-256); its shape is defined by STELA's `docs/system.md` and copied here when it exists. |
+| `system` | STELA P14 | Optional, for `stela-update`: `{"version", "url", "sha256", "size"}` of the System image for this release (`pkgcore::parse_system`, STELA's `docs/system.md` §6). The index (package key) vouches for the file's SHA-256; the image's own trailer carries the System key's signature. `url` relative like the packages'. |
 | `packages[].version` | 0.1.0 | `UPSTREAM-REVISION`; what `pkg list` shows and `pkg upgrade` compares as text. |
 | `packages[].upstream`, `revision` | Agora 1 | The two parts, for tools. |
 | `packages[].stela` | Agora 1 | Lowest STELA version the package needs; `pkg install` refuses on an older system. |

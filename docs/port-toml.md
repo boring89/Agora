@@ -28,7 +28,7 @@ stela = "0.2.0"                   # the lowest STELA version it runs on
 | `description` | yes | One line, shown by `pkg search` and Setup. |
 | `license` | yes | SPDX identifier (or `LicenseRef-…` for the few without one: sqlite's blessing is `blessing`). |
 | `homepage` | yes | The program's site. |
-| `source` | one of these | HTTPS URL of the tarball or single file on the program's official site or official GitHub release. Downloaded to `sources/` under its last path part (or `file`). |
+| `source` | one of these | HTTPS URL of the tarball, `.crate` or single file on the program's official site, official GitHub release or `static.crates.io`. Downloaded to `sources/` under its last path part (or `file`). |
 | `local` | | A folder inside the port (`local = "crate"`) for sources that are part of Agora itself. |
 | `file` | no | Name to store the download as (when the URL's last part is unhelpful, e.g. `v9.1.0800.tar.gz` → `vim-9.1.0800.tar.gz`). |
 | `sha256` | yes with `source` | SHA-256 of the downloaded file, checked on every fetch. |
@@ -36,11 +36,18 @@ stela = "0.2.0"                   # the lowest STELA version it runs on
 | `depends` | no | Run-time dependencies (installed first by `pkg`, put on the test volume by `portbuild.py test`). |
 | `build-depends` | no | Ports built first; their `include/` and `lib/` are merged into `$DEPS`. |
 | `stela` | yes | Lowest STELA version (major.minor.patch) the package needs; goes into `PKGINFO` and the index (`docs/index.md`). |
+| `toolchain` | no | `musl` (default: `build.sh` needs `$MUSL_GCC`) or `rust` (a crates.io `.crate` built with cargo for `x86_64-unknown-linux-musl`, STELA's pinned toolchain; since STELA P14, ripgrep and fd). |
 
 Changes from the `stela-ports` format (applied when the ports move
-here, after 2026-10-23 12:00): `revision` and `stela` become required
-and reach the package; `copy-from` is removed (every source is an
-official URL); `file` is documented.
+here): `revision` and `stela` become required and reach the package;
+`copy-from` is removed (every source is an official URL); `file` and
+`toolchain` are documented.
+
+A `rust` port's `build.sh` runs `cargo build --release --locked`: the
+crate's own `Cargo.lock` pins every dependency, and cargo fetches them
+from crates.io during the build (the one exception to "no network in
+`build.sh`"; whether to vendor them instead is an open decision,
+`docs/decisions.md`).
 
 ## build.sh
 

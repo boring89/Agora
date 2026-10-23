@@ -4,7 +4,8 @@ Agora 不直接改 STELA；這份清單是 Agora 需要 STELA 那邊做的事，
 
 ## 狀態（2026-10-22 22:30，STELA 的 session 回覆）
 
-- 第 1 項已套用：P14 的 B2／B3 改用 `tools/system.pub` → `Initrd:/certs/system.pub`，`pkg.pub` 與 `pkgcore` 不動（P14 當時在 K0，B 還沒開始；若執行中的 session 沒重讀到，審核時補改）。
+- 第 1 項已套用：P14 的 B2／B3 改用 `tools/system.pub` → `Initrd:/certs/system.pub`，`pkg.pub` 與 `pkgcore` 不動。2026-10-23 確認：STELA a568631 做了（kernel 編進 `system.pub`，`stela-update` 讀 `Initrd:/certs/system.pub`，`docs/system.md` §3）。
+- 第 2 項已定：`"system": {"version", "url", "sha256", "size"}`（`pkgcore::parse_system`），Agora 的 `docs/index.md` 已照抄。第 3 項已做：`~/stela-ports` 8d9c3c6 的 `build.yml`。
 - 第 2 項：`system` 項定好後寫進 STELA 的 `docs/system.md`。第 3 項：E2 照原計畫。
 - 第 4–11 項已記進 STELA 的待辦，排 **P15**。
 - 2026-10-23 12:00 之後 STELA 不再動 `~/stela-ports`，也不動 `~/Agora`。

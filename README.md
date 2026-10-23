@@ -7,11 +7,11 @@ and the packages `pkg` (STELA's package tool, `docs/pkg.md` there)
 installs from them. *Agora* (ἀγορά) is the marketplace of a Greek city,
 next to STELA's Mouseion, Kalamos and Periplus.
 
-> Status (2026-10-22): the recipes still live in `~/stela-ports` (the
-> working name) and move here after STELA's P14 run ends (2026-10-23
-> 12:00). Until then this repository holds the design: this README,
-> `LICENSE` and `docs/`. Nothing is published yet; the signing key STELA
-> ships is a test key.
+> Status (2026-10-23): the recipes (25 ports) still live in
+> `~/stela-ports` (the working name, last commit 8d9c3c6) and move here
+> next. This repository holds the design: this README, `LICENSE` and
+> `docs/`. Nothing is published yet; the signing keys STELA ships are
+> test keys.
 
 ## Licensing
 
@@ -41,7 +41,8 @@ Rules that follow from the licenses:
 ports/NAME/port.toml   name, version, revision, source + sha256, license,
                        homepage, install (bin|app), depends,
                        build-depends, stela (lowest STELA version),
-                       description                     (docs/port-toml.md)
+                       toolchain (musl|rust), description
+                                                       (docs/port-toml.md)
 ports/NAME/build.sh    builds into $OUT (env: SRC, OUT, MUSL_GCC,
                        STELA_ROOT, JOBS, PORT, DEPS)
 ports/NAME/test.sh     what to type in STELA's shell and what must appear
@@ -94,8 +95,10 @@ In STELA, `make test-ports` runs all of it (local only, not in STELA's CI).
 - One port (or one fix) per commit; messages `ports/NAME: ...` or
   `tools: ...`, lowercase, imperative.
 - Keep `build.sh` reproducible: no network during the build (everything
-  comes from the fetched tarball and `$DEPS`), no absolute host paths
-  baked in except `/Data/Programs/NAME` where the program needs one.
+  comes from the fetched tarball and `$DEPS`; the exception is a `rust`
+  port's `cargo build --locked`, pinned by the crate's `Cargo.lock`), no
+  absolute host paths baked in except `/Data/Programs/NAME` where the
+  program needs one.
 - Patches that would be useful upstream should be sent upstream too;
   note the upstream issue or PR in the patch header.
 - Nothing from a non-official mirror, nothing without a license, no
@@ -127,6 +130,9 @@ In STELA, `make test-ports` runs all of it (local only, not in STELA's CI).
 | curl | 8.10.1 | curl | curl and libcurl (Mbed TLS, zlib) |
 | file | 5.45 | BSD-2-Clause | with its magic database |
 | less | 668 | GPL-3.0-or-later | |
+| ripgrep | 15.2.0 | Unlicense OR MIT | rg; Rust, from crates.io |
+| fd | 10.5.0 | MIT OR Apache-2.0 | Rust, from crates.io |
+| wpa_supplicant | 2.11 | BSD-3-Clause | compile-only: STELA has no Wi-Fi driver interface yet; wpa_passphrase works |
 
 See `docs/` for the port.toml and index formats, signing and releases;
 STELA's `docs/ports.md`, `docs/pkg.md` and `docs/linux.md` for what the

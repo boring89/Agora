@@ -16,13 +16,25 @@ Two workflows:
 | `lint.yml` | every push and pull request | `tools/portbuild.py lint`: every `port.toml` has the required keys, `source` is https on the program's site (no `copy-from`), `sha256` is 64 hex digits, every patch starts with an SPDX line, every tool has the 0BSD header, `README.md`'s table lists every port. Seconds. |
 | `build.yml` | `workflow_dispatch` (input: STELA tag, default `STELA_VERSION`) and tags `v*` | checkout Agora and STELA at the tag; apt `qemu-system-x86 ovmf mtools gdisk gcc`; Rust from STELA's `rust-toolchain.toml`; in STELA `make musl esp test-images ehfs-tools`; `portbuild.py fetch all` (sources cached by SHA-256), `build all`, `package all`, `test all` (QEMU, TCG), `index` signed with the `AGORA_PACKAGE_KEY` secret; on a tag, a GitHub Release with the assets below. |
 
-Expected time for 22 ports: the builds under an hour (python3 and git
-dominate), the QEMU tests about an hour (each boots STELA, 240 s limit).
+Expected time for 25 ports: the builds about an hour (python3, git and
+the two Rust ports dominate; STELA's `make release` measured 15 min for
+22 ports locally), the QEMU tests about an hour (each boots STELA, 240 s
+limit).
 If it grows past the 6 h job limit, the build splits into shards along
 `build-depends` (libraries first) with `work/` as an artifact.
 
-STELA's P14 run writes a first `build.yml` in `~/stela-ports` (its step
-E2, not executed); it is the starting point for this one.
+STELA's P14 wrote the first `build.yml` (`~/stela-ports` 8d9c3c6, never
+run): one job, 180 min limit, `workflow_dispatch` with inputs
+`stela_ref` (STELA tag) and `release_tag` (default the same), apt
+packages as STELA's CI plus `python3-cryptography`, `sources/` cached by
+the hash of every `port.toml`, STELA built with `make musl esp
+test-images ehfs-tools`, `portbuild.py all all`, index signed from the
+secret `PKG_SIGNING_KEY` (written to `$RUNNER_TEMP` under `umask 077`
+and removed), then a **draft** release with the tars, index, `.sig` and
+`SHA256SUMS`. Agora keeps all of that and adds: `STELA_VERSION` as the
+default of `stela_ref`, the `v*` tag trigger, the `sources/` copies and
+`SOURCES.txt` among the assets, the `lint` workflow, and Agora's own
+index tool in place of STELA's `pkgsign.py`.
 
 ## A release
 
@@ -36,7 +48,10 @@ sources/NAME-VERSION.tar.*         every upstream tarball, unchanged
 SOURCES.txt                        name, version, URL, SHA-256, license per port
 ```
 
-The patches are in the tagged tree. `pkg.conf` on a STELA then says:
+The patches are in the tagged tree. STELA's own release job (its
+`ci.yml`, on a `v*` tag) downloads this release by the same tag name
+and bundles it as `stela-X.Y.Z-ports.tar`, so the Agora release is made
+first. `pkg.conf` on a STELA then says:
 
 ```
 server = https://github.com/boring89/Agora/releases/download/v0.2.0/
