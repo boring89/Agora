@@ -1,3 +1,8 @@
+SPDX-License-Identifier: LGPL-2.1-or-later
+Current assemblers emit R_X86_64_PLT32 for calls even in static code and
+tcc 0.9.27's linker rejects the type. Treat it like PC32 (STELA builds
+everything static, so there is no PLT). Later tinycc handles PLT32 itself.
+
 --- a/x86_64-link.c
 +++ b/x86_64-link.c
 @@ -76,6 +76,10 @@
