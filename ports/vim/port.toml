@@ -1,0 +1,12 @@
+name = "vim"
+version = "9.1.0800"
+description = "Vim: the editor (normal features, terminal only, no runtime files)"
+license = "Vim"
+homepage = "https://www.vim.org/"
+source = "https://github.com/vim/vim/archive/refs/tags/v9.1.0800.tar.gz"
+sha256 = "3bc15301f35addac9acde1da64da0976dbeafe1264e904c25a3cdc831e347303"
+file = "vim-9.1.0800.tar.gz"
+install = "bin"
+stela = "0.1.0"
+depends = []
+build-depends = ["ncurses"]

@@ -1,0 +1,10 @@
+name = "xz"
+version = "5.6.3"
+description = "XZ Utils: liblzma (static, headers) and the xz program"
+license = "0BSD"
+homepage = "https://tukaani.org/xz/"
+source = "https://github.com/tukaani-project/xz/releases/download/v5.6.3/xz-5.6.3.tar.gz"
+sha256 = "b1d45295d3f71f25a4c9101bd7c8d16cb56348bbef3bbc738da0351e17c73317"
+install = "bin"
+stela = "0.1.0"
+depends = []

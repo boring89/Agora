@@ -1,0 +1,10 @@
+name = "kilo"
+version = "0.0.1"
+description = "kilo: a small text editor in one C file"
+license = "BSD-2-Clause"
+homepage = "https://github.com/antirez/kilo"
+copy-from = "~/文件/68k_HAL/third_party/downloads/kilo/kilo.c"
+sha256 = "4a44dd0e41670a9e49ecccb338ee199334f0dd472fc7f86467569cf99c391abe"
+install = "bin"
+stela = "0.1.0"
+depends = []

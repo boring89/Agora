@@ -1,0 +1,95 @@
+# Builds every port against a STELA release, tests each in QEMU, signs the
+# index and uploads the packages as a GitHub release of this repository
+# (STELA P14 K18, STELA's docs/release.md). Run by hand only
+# (workflow_dispatch): written in P14 and never run yet.
+#
+# Before the first run:
+# - The six ports with `copy-from` (lua, sqlite, kilo, dash, make, tcc)
+#   take their source from a local folder; switch them to their official
+#   URLs, or this fails at "Fetch sources".
+# - Add the secret PKG_SIGNING_KEY: the package key's 32-byte seed in hex
+#   (the public half replaces STELA's tools/pkg.pub). Never the System key:
+#   System images are signed on the releaser's own machine.
+# - STELA_REPO (a repository variable) if STELA is not boring89/STELA.
+name: Build ports
+
+on:
+  workflow_dispatch:
+    inputs:
+      stela_ref:
+        description: "STELA tag (or commit) to build against, e.g. v0.2.0"
+        required: true
+      release_tag:
+        description: "Tag of this repository's release (default: the same as stela_ref)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      TAG: ${{ inputs.release_tag || inputs.stela_ref }}
+    steps:
+      - name: Check out the ports
+        uses: actions/checkout@v4
+        with:
+          path: ports-repo
+      - name: Check out STELA
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.STELA_REPO || 'boring89/STELA' }}
+          ref: ${{ inputs.stela_ref }}
+          path: STELA
+      - name: Install packages
+        # As STELA's CI, and python3-cryptography for the signature.
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf python3 python3-cryptography mtools gdisk gcc binutils-m68k-linux-gnu xz-utils bzip2 unzip
+      - name: Upstream sources
+        # Fetched once per set of recipes; portbuild checks each SHA-256.
+        uses: actions/cache@v4
+        with:
+          path: ports-repo/sources
+          key: sources-${{ hashFiles('ports-repo/ports/*/port.toml') }}
+      - name: Fetch sources
+        run: python3 ports-repo/tools/portbuild.py fetch all
+        env:
+          STELA_ROOT: ${{ github.workspace }}/STELA
+      - name: musl and libchewing tarballs
+        # STELA's Makefile checks their SHA-256 (STELA's ci.yml has the sums).
+        run: |
+          mkdir -p cache
+          curl -fsSL -o cache/musl-1.2.5.tar.gz https://musl.libc.org/releases/musl-1.2.5.tar.gz
+          echo "a9a118bbe84d8764da0ea0d28b3ab3fae8477fc7e4085d90102b8596fc7c75e4  cache/musl-1.2.5.tar.gz" | sha256sum -c -
+          curl -fsSL -o cache/libchewing-0.5.1.tar.bz2 https://github.com/chewing/libchewing/releases/download/v0.5.1/libchewing-0.5.1.tar.bz2
+          echo "9708c63415fa6034435c0f38100e7d30d0e1bac927f67bec6dfeb3fef016172b  cache/libchewing-0.5.1.tar.bz2" | sha256sum -c -
+          echo "MUSL_TARBALL=$PWD/cache/musl-1.2.5.tar.gz" >> "$GITHUB_ENV"
+          echo "CHEWING_TARBALL=$PWD/cache/libchewing-0.5.1.tar.bz2" >> "$GITHUB_ENV"
+      - name: Build STELA (what the tests boot)
+        working-directory: STELA
+        run: cargo --version && make musl esp test-images ehfs-tools
+      - name: Build, package and test every port
+        run: python3 ports-repo/tools/portbuild.py all all
+        env:
+          STELA_ROOT: ${{ github.workspace }}/STELA
+      - name: Signed index
+        run: |
+          umask 077
+          printf '%s\n' "$PKG_SIGNING_KEY" > "$RUNNER_TEMP/pkg-signing.key"
+          PKG_SIGNING_KEY="$RUNNER_TEMP/pkg-signing.key" python3 ports-repo/tools/portbuild.py index
+          rm -f "$RUNNER_TEMP/pkg-signing.key"
+        env:
+          STELA_ROOT: ${{ github.workspace }}/STELA
+          PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
+      - name: Release
+        # A draft: the releaser looks at it and publishes it by hand.
+        working-directory: ports-repo/dist
+        run: |
+          sha256sum *.tar index.json index.json.sig > SHA256SUMS
+          gh release create "$TAG" --draft --repo "$GITHUB_REPOSITORY" \
+            --title "Ports for STELA ${{ inputs.stela_ref }}" \
+            --notes "Built against STELA ${{ inputs.stela_ref }}; every package tested in QEMU only." \
+            *.tar index.json index.json.sig SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
